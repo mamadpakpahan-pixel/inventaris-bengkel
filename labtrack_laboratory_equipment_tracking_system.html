@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LABTRACK - Laboratory Equipment Tracking System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- QRCode.js Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        lab: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            200: '#bae0fd',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Print Styles */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background-color: white !important;
+            }
+            .print-full {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+            }
+        }
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
+            50% { border-color: rgba(239, 68, 68, 1); }
+        }
+        .animate-alert-border {
+            animation: pulse-border 2s infinite;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-sky-100 selection:text-sky-900">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div id="sidebar-backdrop" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-30 hidden lg:hidden transition-opacity"></div>
+
+    <div class="min-h-screen flex flex-col lg:flex-row">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside id="sidebar" class="no-print fixed lg:static inset-y-0 left-0 z-40 w-72 bg-slate-900 text-slate-200 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 shadow-xl">
+            <!-- Brand Header -->
+            <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/30">
+                        <i class="fa-solid fa-microchip text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-lg tracking-tight text-white leading-none">LABTRACK</h1>
+                        <p class="text-[11px] text-slate-400 mt-1 font-medium">Lab Equipment Tracking</p>
+                    </div>
+                </div>
+                <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-400 hover:text-white p-2 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Active Role Card in Sidebar -->
+            <div class="px-4 pt-5 pb-2">
+                <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3.5">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Mode Akses Aktif</span>
+                        <span id="role-badge-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    </div>
+                    <div id="sidebar-role-name" class="font-bold text-sm text-white flex items-center gap-2">
+                        <i class="fa-solid fa-user-gear text-sky-400"></i>
+                        <span>PLP Laboratorium</span>
+                    </div>
+                    <p id="sidebar-role-desc" class="text-xs text-slate-400 mt-1 leading-relaxed">
+                        Akses penuh: Kelola alat, setujui pinjaman, & inspeksi kembali.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto" id="nav-menu">
+                <button onclick="navigate('dashboard')" data-nav="dashboard" class="nav-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium transition-all bg-sky-600 text-white shadow-md shadow-sky-900/40">
+                    <span class="flex items-center gap-3">
+                        <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                        <span>Dashboard</span>
+                    </span>
+                    <span id="nav-alert-badge" class="hidden bg-rose-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </button>
+
+                <button onclick="navigate('inventaris')" data-nav="inventaris" class="nav-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+                    <span class="flex items-center gap-3">
+                        <i class="fa-solid fa-toolbox w-5 text-center"></i>
+                        <span>Data Inventaris</span>
+                    </span>
+                    <span id="nav-inv-count" class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md font-semibold">0</span>
+                </button>
+
+                <button onclick="navigate('peminjaman')" data-nav="peminjaman" class="nav-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+                    <span class="flex items-center gap-3">
+                        <i class="fa-solid fa-hand-holding-hand w-5 text-center"></i>
+                        <span>Peminjaman</span>
+                    </span>
+                    <span id="nav-pending-badge" class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </button>
+
+                <button onclick="navigate('pengembalian')" data-nav="pengembalian" class="nav-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+                    <span class="flex items-center gap-3">
+                        <i class="fa-solid fa-rotate-left w-5 text-center"></i>
+                        <span>Pengembalian</span>
+                    </span>
+                    <span id="nav-active-loan-badge" class="bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[11px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </button>
+
+                <button onclick="navigate('riwayat')" data-nav="riwayat" class="nav-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+                    <span class="flex items-center gap-3">
+                        <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i>
+                        <span>Riwayat Peminjaman</span>
+                    </span>
+                </button>
+
+                <button onclick="navigate('laporan')" data-nav="laporan" class="nav-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+                    <span class="flex items-center gap-3">
+                        <i class="fa-solid fa-file-contract w-5 text-center"></i>
+                        <span>Laporan Otomatis</span>
+                    </span>
+                </button>
+            </nav>
+
+            <!-- Quick QR Scan Simulator Button -->
+            <div class="p-4 border-t border-slate-800 space-y-2">
+                <button onclick="openScanSimulatorModal()" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer">
+                    <i class="fa-solid fa-qrcode text-sm"></i>
+                    <span>Simulasi Scan QR Alat</span>
+                </button>
+                <button onclick="resetDemoData()" class="w-full py-2 px-3 rounded-xl text-slate-500 hover:text-slate-300 text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                    <i class="fa-solid fa-arrow-rotate-right"></i>
+                    <span>Reset Data Simulasi</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 flex flex-col min-w-0">
+            <!-- TOP HEADER BAR -->
+            <header class="no-print sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3.5">
+                <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+                    <!-- Left: Mobile Hamburger + Page Title -->
+                    <div class="flex items-center gap-3">
+                        <button onclick="toggleMobileSidebar()" class="lg:hidden p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200">
+                            <i class="fa-solid fa-bars"></i>
+                        </button>
+                        <div>
+                            <h2 id="page-title" class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Dashboard Laboratorium</h2>
+                            <p id="page-subtitle" class="text-xs text-slate-500 hidden sm:block">Pemantauan stok alat, status peminjaman, dan pengingat tenggat real-time</p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Role Switcher Control -->
+                    <div class="flex items-center gap-2 sm:gap-3 bg-slate-100 p-1.5 rounded-xl border border-slate-200/80">
+                        <span class="text-xs font-semibold text-slate-500 pl-2 hidden md:inline">
+                            <i class="fa-solid fa-users-viewfinder mr-1 text-sky-600"></i>Peran:
+                        </span>
+                        <div class="flex items-center gap-1" id="role-switcher-buttons">
+                            <button onclick="switchRole('PLP')" data-role="PLP" class="role-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white text-sky-700 shadow-xs">
+                                <i class="fa-solid fa-user-gear mr-1"></i>PLP
+                            </button>
+                            <button onclick="switchRole('SISWA_GURU')" data-role="SISWA_GURU" class="role-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 hover:text-slate-900">
+                                <i class="fa-solid fa-user-graduate mr-1"></i>Siswa / Guru
+                            </button>
+                            <button onclick="switchRole('KEPALA_BENGKEL')" data-role="KEPALA_BENGKEL" class="role-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 hover:text-slate-900">
+                                <i class="fa-solid fa-user-tie mr-1"></i>Kepala Bengkel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- DYNAMIC PAGE CONTENT -->
+            <main id="main-content" class="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
+                <!-- Content injected by JavaScript -->
+            </main>
+
+            <!-- FOOTER -->
+            <footer class="no-print border-t border-slate-200 bg-white px-6 py-4 text-center sm:text-left">
+                <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+                    <p><strong class="text-slate-700">LABTRACK</strong> — Laboratory Equipment Tracking System (Prototipe Studi Kasus PLP)</p>
+                    <p>Digitalisasi Inventaris, Peminjaman Berbasis QR Code & Pelaporan Otomatis</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- 1. QR Code Detail Modal -->
+    <div id="modal-qr" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 animate-fade-in">
+            <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-qrcode text-sky-400"></i>
+                    <h3 class="font-bold text-base">Label Identitas QR Alat</h3>
+                </div>
+                <button onclick="closeModal('modal-qr')" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 text-center space-y-4">
+                <div class="inline-block p-4 bg-white border-2 border-dashed border-slate-300 rounded-2xl shadow-xs">
+                    <div id="qr-canvas-container" class="flex items-center justify-center"></div>
+                </div>
+                <div>
+                    <span id="qr-item-code" class="inline-block px-3 py-1 rounded-full bg-sky-50 text-sky-700 font-mono font-bold text-xs border border-sky-200">ALT-001</span>
+                    <h4 id="qr-item-name" class="text-lg font-bold text-slate-900 mt-2">Multimeter Digital</h4>
+                    <p id="qr-item-category" class="text-xs text-slate-500">Alat Ukur Elektronika</p>
+                </div>
+                <div id="qr-item-stock-summary" class="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs">
+                    <!-- Stock info injected -->
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                    <button id="qr-quick-borrow-btn" class="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors">
+                        <i class="fa-solid fa-hand-holding-hand"></i>
+                        <span>Ajukan Pinjam Alat Ini</span>
+                    </button>
+                    <button onclick="closeModal('modal-qr')" class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Simulasi Scan QR Modal -->
+    <div id="modal-scan" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+            <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-camera text-sky-400"></i>
+                    <h3 class="font-bold text-base">Pemindai QR Code Alat (Simulasi)</h3>
+                </div>
+                <button onclick="closeModal('modal-scan')" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="relative bg-slate-950 rounded-2xl p-6 text-center overflow-hidden border border-slate-800">
+                    <div class="w-44 h-44 mx-auto border-2 border-sky-400/80 rounded-2xl flex flex-col items-center justify-center relative bg-slate-900/60">
+                        <i class="fa-solid fa-qrcode text-5xl text-sky-400/70 mb-2"></i>
+                        <span class="text-[11px] text-sky-300 font-medium">Arahkan kamera ke stiker QR</span>
+                        <div class="absolute inset-x-2 top-1/2 h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse"></div>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-3">Pilih salah satu kode alat di bawah ini untuk mensimulasikan hasil pemindaian kamera:</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Pilih Tag QR Alat Terdeteksi:</label>
+                    <select id="scan-select-item" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white">
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button onclick="executeSimulatedScan()" class="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Proses Hasil Scan QR</span>
+                    </button>
+                    <button onclick="closeModal('modal-scan')" class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Modal Tambah / Edit Alat Inventaris (Khusus PLP) -->
+    <div id="modal-add-item" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+            <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-plus-circle text-sky-400"></i>
+                    <h3 id="modal-item-title" class="font-bold text-base">Tambah Data Alat Inventaris</h3>
+                </div>
+                <button onclick="closeModal('modal-add-item')" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="form-inventory-item" onsubmit="handleSaveInventoryItem(event)" class="p-6 space-y-4">
+                <input type="hidden" id="inv-edit-id">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Kode Barang *</label>
+                        <input type="text" id="inv-code" required placeholder="Contoh: LAB-ELK-007" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Alat *</label>
+                        <select id="inv-category" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white">
+                            <option value="Alat Ukur">Alat Ukur</option>
+                            <option value="Jaringan & Komputer">Jaringan & Komputer</option>
+                            <option value="Perkakas Teknik">Perkakas Teknik</option>
+                            <option value="Catu Daya & Modul">Catu Daya & Modul</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Alat Laboratorium *</label>
+                    <input type="text" id="inv-name" required placeholder="Contoh: Digital Oscilloscope 100MHz" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Total Stok *</label>
+                        <input type="number" id="inv-total" min="1" max="500" required value="5" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Lokasi Rak / Lemari</label>
+                        <input type="text" id="inv-location" placeholder="Contoh: Lemari A - Rak 2" value="Lemari Utama Lab" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                </div>
+                <div id="inv-damaged-wrapper" class="hidden">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Unit Rusak / Perlu Perbaikan</label>
+                    <input type="number" id="inv-damaged" min="0" value="0" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <p class="text-[11px] text-slate-500 mt-1">Kurangi jumlah ini jika unit rusak sudah selesai diperbaiki oleh teknisi/PLP.</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modal-add-item')" class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">Batal</button>
+                    <button type="submit" class="py-2.5 px-5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-save"></i>
+                        <span>Simpan Inventaris</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Modal Inspeksi & Proses Pengembalian Alat (Khusus PLP) -->
+    <div id="modal-return" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+            <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-clipboard-check text-emerald-400"></i>
+                    <h3 class="font-bold text-base">Inspeksi Kondisi & Pengembalian Alat</h3>
+                </div>
+                <button onclick="closeModal('modal-return')" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="form-return-inspection" onsubmit="handleProcessReturn(event)" class="p-6 space-y-4">
+                <input type="hidden" id="return-loan-id">
+                <div id="return-summary-box" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1.5 text-sm">
+                    <!-- Loan details injected here -->
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Hasil Pemeriksaan Fisik & Fungsi Alat *</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="returnCondition" value="BAIK" checked class="peer sr-only">
+                            <div class="p-3.5 rounded-xl border-2 border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50/70 transition-all">
+                                <div class="flex items-center gap-2 font-bold text-sm text-emerald-800">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                                    <span>Kondisi Baik</span>
+                                </div>
+                                <p class="text-xs text-slate-600 mt-1">Alat berfungsi normal & status kembali <strong>Tersedia</strong>.</p>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="returnCondition" value="RUSAK" class="peer sr-only">
+                            <div class="p-3.5 rounded-xl border-2 border-slate-200 peer-checked:border-rose-500 peer-checked:bg-rose-50/70 transition-all">
+                                <div class="flex items-center gap-2 font-bold text-sm text-rose-800">
+                                    <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                                    <span>Rusak / Perbaikan</span>
+                                </div>
+                                <p class="text-xs text-slate-600 mt-1">Alat bermasalah & dicatat <strong>Perlu Perbaikan</strong>.</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Pemeriksaan PLP</label>
+                    <textarea id="return-notes" rows="2" placeholder="Contoh: Kelengkapan kabel probe lengkap, fungsi normal / Layar retak atau fuse putus..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modal-return')" class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">Batal</button>
+                    <button type="submit" class="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-check-double"></i>
+                        <span>Konfirmasi Pengembalian</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== APPLICATION LOGIC ==================== -->
+    <script>
+        // Helper: Format Tanggal Indonesia
+        function getOffsetDateStr(daysOffset) {
+            const d = new Date();
+            d.setDate(d.getDate() + daysOffset);
+            return d.toISOString().split('T')[0];
+        }
+
+        function formatIndoDate(dateStr) {
+            if (!dateStr) return '-';
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+        }
+
+        // Hitung selisih hari dari hari ini ke tanggal kembali
+        function getDaysRemaining(dueDateStr) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const due = new Date(dueDateStr + 'T00:00:00');
+            const diffTime = due - today;
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        // INITIAL DUMMY DATA (Sesuai Studi Kasus LABTRACK)
+        const DEFAULT_STATE = {
+            currentRole: 'PLP', // 'PLP' | 'SISWA_GURU' | 'KEPALA_BENGKEL'
+            currentPage: 'dashboard',
+            inventory: [
+                {
+                    id: 'INV-01',
+                    code: 'LAB-ELK-001',
+                    name: 'Multimeter Digital Sanwa CD800a',
+                    category: 'Alat Ukur',
+                    total: 15,
+                    borrowed: 3,
+                    damaged: 1,
+                    location: 'Lemari A - Rak 1',
+                    totalLoansCount: 42
+                },
+                {
+                    id: 'INV-02',
+                    code: 'LAB-NET-002',
+                    name: 'Tang Crimping RJ45 & LAN Tester',
+                    category: 'Jaringan & Komputer',
+                    total: 20,
+                    borrowed: 4,
+                    damaged: 0,
+                    location: 'Lemari B - Rak 2',
+                    totalLoansCount: 58
+                },
+                {
+                    id: 'INV-03',
+                    code: 'LAB-KOM-003',
+                    name: 'Laptop Praktikum Core i5 (Lab)',
+                    category: 'Jaringan & Komputer',
+                    total: 12,
+                    borrowed: 2,
+                    damaged: 1,
+                    location: 'Lemari Besi C',
+                    totalLoansCount: 35
+                },
+                {
+                    id: 'INV-04',
+                    code: 'LAB-ELK-004',
+                    name: 'Solder Station Temperature Control',
+                    category: 'Perkakas Teknik',
+                    total: 10,
+                    borrowed: 0,
+                    damaged: 1,
+                    location: 'Meja Kerja Timur',
+                    totalLoansCount: 27
+                },
+                {
+                    id: 'INV-05',
+                    code: 'LAB-ELK-005',
+                    name: 'Digital Storage Oscilloscope 100MHz',
+                    category: 'Alat Ukur',
+                    total: 6,
+                    borrowed: 1,
+                    damaged: 0,
+                    location: 'Lemari A - Rak 3',
+                    totalLoansCount: 19
+                },
+                {
+                    id: 'INV-06',
+                    code: 'LAB-PWR-006',
+                    name: 'DC Regulated Power Supply 30V 5A',
+                    category: 'Catu Daya & Modul',
+                    total: 8,
+                    borrowed: 0,
+                    damaged: 0,
+                    location: 'Lemari A - Rak 2',
+                    totalLoansCount: 24
+                }
+            ],
+            loans: [
+                // 1. Terlambat dikembalikan (Overdue) - untuk memicu Pengingat Pengembalian
+                {
+                    id: 'TRX-2026-081',
+                    borrowerName: 'Rizky Ramadhan',
+                    borrowerRole: 'Siswa',
+                    department: 'XII TKJ 1',
+                    itemId: 'INV-02',
+                    qty: 4,
+                    borrowDate: getOffsetDateStr(-4),
+                    dueDate: getOffsetDateStr(-1),
+                    returnDate: null,
+                    purpose: 'Praktikum Instalasi Kabel UTP & Subnetting',
+                    status: 'DIPINJAM',
+                    conditionAfter: null,
+                    notes: ''
+                },
+                // 2. Mendekati Tenggat (Hari ini / H+1)
+                {
+                    id: 'TRX-2026-082',
+                    borrowerName: 'Bpk. Hendra Wijaya, S.Pd',
+                    borrowerRole: 'Guru',
+                    department: 'Guru Produktif Elektronika',
+                    itemId: 'INV-05',
+                    qty: 1,
+                    borrowDate: getOffsetDateStr(-2),
+                    dueDate: getOffsetDateStr(0),
+                    returnDate: null,
+                    purpose: 'Demonstrasi Pembacaan Gelombang Sinyal PWM',
+                    status: 'DIPINJAM',
+                    conditionAfter: null,
+                    notes: ''
+                },
+                // 3. Sedang Dipinjam (Aman)
+                {
+                    id: 'TRX-2026-083',
+                    borrowerName: 'Nadia Putri Maharani',
+                    borrowerRole: 'Siswa',
+                    department: 'XI TEI 2',
+                    itemId: 'INV-01',
+                    qty: 3,
+                    borrowDate: getOffsetDateStr(-1),
+                    dueDate: getOffsetDateStr(3),
+                    returnDate: null,
+                    purpose: 'Pengukuran Tegangan & Hambatan Rangkaian Seri-Paralel',
+                    status: 'DIPINJAM',
+                    conditionAfter: null,
+                    notes: ''
+                },
+                // 4. Sedang Dipinjam (Aman)
+                {
+                    id: 'TRX-2026-084',
+                    borrowerName: 'Dimas Saputra',
+                    borrowerRole: 'Siswa',
+                    department: 'XII RPL 1',
+                    itemId: 'INV-03',
+                    qty: 2,
+                    borrowDate: getOffsetDateStr(0),
+                    dueDate: getOffsetDateStr(2),
+                    returnDate: null,
+                    purpose: 'Uji Coba Konfigurasi Server Lokal & Database',
+                    status: 'DIPINJAM',
+                    conditionAfter: null,
+                    notes: ''
+                },
+                // 5. Menunggu Persetujuan PLP
+                {
+                    id: 'TRX-2026-085',
+                    borrowerName: 'Siti Aisyah',
+                    borrowerRole: 'Siswa',
+                    department: 'XI TKJ 2',
+                    itemId: 'INV-01',
+                    qty: 2,
+                    borrowDate: getOffsetDateStr(0),
+                    dueDate: getOffsetDateStr(2),
+                    returnDate: null,
+                    purpose: 'Pengecekan Konektivitas Jalur Power Supply',
+                    status: 'MENUNGGU',
+                    conditionAfter: null,
+                    notes: ''
+                },
+                {
+                    id: 'TRX-2026-086',
+                    borrowerName: 'Ibu Ratna Sari, M.Kom',
+                    borrowerRole: 'Guru',
+                    department: 'Guru Jaringan Komputer',
+                    itemId: 'INV-03',
+                    qty: 3,
+                    borrowDate: getOffsetDateStr(0),
+                    dueDate: getOffsetDateStr(4),
+                    returnDate: null,
+                    purpose: 'Persiapan Lomba Kompetensi Siswa (LKS)',
+                    status: 'MENUNGGU',
+                    conditionAfter: null,
+                    notes: ''
+                },
+                // 6. Riwayat Selesai (Baik & Rusak)
+                {
+                    id: 'TRX-2026-079',
+                    borrowerName: 'Ahmad Fauzan',
+                    borrowerRole: 'Siswa',
+                    department: 'XII TEI 1',
+                    itemId: 'INV-04',
+                    qty: 1,
+                    borrowDate: getOffsetDateStr(-6),
+                    dueDate: getOffsetDateStr(-4),
+                    returnDate: getOffsetDateStr(-4),
+                    purpose: 'Soldering PCB Modul Sensor Suhu',
+                    status: 'DIKEMBALIKAN_RUSAK',
+                    conditionAfter: 'RUSAK',
+                    notes: 'Elemen pemanas solder tidak stabil, perlu penggantian mata & heater.'
+                },
+                {
+                    id: 'TRX-2026-078',
+                    borrowerName: 'Bagas Pratama',
+                    borrowerRole: 'Siswa',
+                    department: 'XI TKJ 1',
+                    itemId: 'INV-06',
+                    qty: 2,
+                    borrowDate: getOffsetDateStr(-7),
+                    dueDate: getOffsetDateStr(-5),
+                    returnDate: getOffsetDateStr(-5),
+                    purpose: 'Praktikum Catu Daya DC',
+                    status: 'DIKEMBALIKAN_BAIK',
+                    conditionAfter: 'BAIK',
+                    notes: 'Semua unit kembali lengkap dan berfungsi normal.'
+                }
+            ]
+        };
+
+        // Session State
+        let appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+        // Filter States
+        let invSearch = '';
+        let invCategoryFilter = 'ALL';
+        let invStatusFilter = 'ALL';
+        let historySearch = '';
+        let historyStatusFilter = 'ALL';
+
+        // Computed Inventory Helpers
+        function getAvailableQty(item) {
+            return Math.max(0, item.total - item.borrowed - item.damaged);
+        }
+
+        function getTotals() {
+            let totalUnits = 0;
+            let availableUnits = 0;
+            let borrowedUnits = 0;
+            let damagedUnits = 0;
+
+            appState.inventory.forEach(item => {
+                totalUnits += item.total;
+                borrowedUnits += item.borrowed;
+                damagedUnits += item.damaged;
+                availableUnits += getAvailableQty(item);
+            });
+
+            const pendingRequests = appState.loans.filter(l => l.status === 'MENUNGGU').length;
+            const activeLoans = appState.loans.filter(l => l.status === 'DIPINJAM');
+            const overdueOrDueSoon = activeLoans.filter(l => getDaysRemaining(l.dueDate) <= 1);
+
+            return {
+                totalUnits,
+                availableUnits,
+                borrowedUnits,
+                damagedUnits,
+                pendingRequests,
+                activeLoansCount: activeLoans.length,
+                alertsCount: overdueOrDueSoon.length
+            };
+        }
+
+        // Toast Notification
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const styles = {
+                success: 'bg-slate-900 text-white border-emerald-500',
+                warning: 'bg-amber-950 text-amber-50 border-amber-500',
+                danger: 'bg-rose-950 text-rose-50 border-rose-500',
+                info: 'bg-sky-950 text-sky-50 border-sky-500'
+            };
+            const icons = {
+                success: '<i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>',
+                warning: '<i class="fa-solid fa-triangle-exclamation text-amber-400 text-base"></i>',
+                danger: '<i class="fa-solid fa-circle-exclamation text-rose-400 text-base"></i>',
+                info: '<i class="fa-solid fa-circle-info text-sky-400 text-base"></i>'
+            };
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3.5 rounded-xl border-l-4 shadow-xl text-xs sm:text-sm font-medium transition-all duration-300 translate-y-2 opacity-0 ${styles[type] || styles.success}`;
+            toast.innerHTML = `${icons[type] || icons.success} <span class="flex-1">${message}</span>`;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Reset Demo Data
+        function resetDemoData() {
+            const currentRole = appState.currentRole;
+            const currentPage = appState.currentPage;
+            appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+            appState.currentRole = currentRole;
+            appState.currentPage = currentPage;
+            renderApp();
+            showToast('Data simulasi LABTRACK berhasil dikembalikan ke kondisi awal.', 'info');
+        }
+
+        // Mobile Sidebar Toggle
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            sidebar.classList.toggle('-translate-x-full');
+            backdrop.classList.toggle('hidden');
+        }
+
+        // Role Switcher Logic
+        function switchRole(newRole) {
+            appState.currentRole = newRole;
+            const roleLabels = {
+                PLP: 'Mode PLP (Pranata Laboratorium Pendidikan) aktif — Akses penuh.',
+                SISWA_GURU: 'Mode Siswa / Guru aktif — Lihat katalog alat & ajukan peminjaman.',
+                KEPALA_BENGKEL: 'Mode Kepala Bengkel aktif — Pemantauan stok, kondisi & laporan.'
+            };
+            showToast(roleLabels[newRole], 'info');
+            renderApp();
+        }
+
+        // Navigation Logic
+        function navigate(page) {
+            appState.currentPage = page;
+            // Close mobile sidebar if open
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+            renderApp();
+        }
+
+        // Update Sidebar Badges & Header Role UI
+        function updateChromeUI() {
+            const totals = getTotals();
+
+            // Update Nav Badges
+            document.getElementById('nav-inv-count').textContent = appState.inventory.length;
+            document.getElementById('nav-pending-badge').textContent = totals.pendingRequests;
+            document.getElementById('nav-active-loan-badge').textContent = totals.activeLoansCount;
+
+            const alertBadge = document.getElementById('nav-alert-badge');
+            if (totals.alertsCount > 0) {
+                alertBadge.textContent = totals.alertsCount;
+                alertBadge.classList.remove('hidden');
+            } else {
+                alertBadge.classList.add('hidden');
+            }
+
+            // Update Active Nav Item Styling
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                const navTarget = btn.getAttribute('data-nav');
+                if (navTarget === appState.currentPage) {
+                    btn.className = 'nav-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition-all bg-sky-600 text-white shadow-md shadow-sky-900/40';
+                } else {
+                    btn.className = 'nav-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all';
+                }
+            });
+
+            // Update Role Buttons in Header
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                const r = btn.getAttribute('data-role');
+                if (r === appState.currentRole) {
+                    btn.className = 'role-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-sky-700 shadow-xs cursor-pointer';
+                } else {
+                    btn.className = 'role-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 hover:text-slate-900 cursor-pointer';
+                }
+            });
+
+            // Update Sidebar Role Card
+            const roleMeta = {
+                PLP: {
+                    name: '<i class="fa-solid fa-user-gear text-sky-400"></i><span>PLP Laboratorium</span>',
+                    desc: 'Akses penuh: Kelola inventaris, setujui pinjaman & inspeksi kembali.',
+                    dot: 'bg-emerald-400'
+                },
+                SISWA_GURU: {
+                    name: '<i class="fa-solid fa-user-graduate text-amber-400"></i><span>Siswa / Guru</span>',
+                    desc: 'Cek ketersediaan alat, pindai QR & ajukan peminjaman online.',
+                    dot: 'bg-amber-400'
+                },
+                KEPALA_BENGKEL: {
+                    name: '<i class="fa-solid fa-user-tie text-purple-400"></i><span>Kepala Bengkel</span>',
+                    desc: 'Monitoring kondisi inventaris, keterlambatan & laporan rekap.',
+                    dot: 'bg-purple-400'
+                }
+            };
+            const activeRoleInfo = roleMeta[appState.currentRole];
+            document.getElementById('sidebar-role-name').innerHTML = activeRoleInfo.name;
+            document.getElementById('sidebar-role-desc').textContent = activeRoleInfo.desc;
+            document.getElementById('role-badge-dot').className = `w-2 h-2 rounded-full ${activeRoleInfo.dot} animate-pulse`;
+
+            // Update Header Title & Subtitle
+            const pageTitles = {
+                dashboard: ['Dashboard Laboratorium', 'Ringkasan inventaris real-time, peringatan tenggat, dan pemantauan stok'],
+                inventaris: ['Data Inventaris Alat', 'Daftar aset laboratorium, status ketersediaan, dan kode identitas QR'],
+                peminjaman: ['Peminjaman Alat Online', 'Formulir pengajuan peminjaman siswa/guru dan antrean persetujuan PLP'],
+                pengembalian: ['Pengembalian & Inspeksi Alat', 'Pemantauan alat yang sedang dipinjam dan pemeriksaan kondisi saat kembali'],
+                riwayat: ['Riwayat Peminjaman', 'Log lengkap seluruh transaksi peminjaman dan pengembalian alat'],
+                laporan: ['Laporan Otomatis Laboratorium', 'Rekapitulasi penggunaan alat dan status kondisi inventaris siap cetak']
+            };
+            document.getElementById('page-title').textContent = pageTitles[appState.currentPage][0];
+            document.getElementById('page-subtitle').textContent = pageTitles[appState.currentPage][1];
+        }
+
+        // ==================== PAGE RENDERERS ====================
+
+        function renderApp() {
+            updateChromeUI();
+            const main = document.getElementById('main-content');
+
+            switch (appState.currentPage) {
+                case 'dashboard':
+                    main.innerHTML = renderDashboardPage();
+                    break;
+                case 'inventaris':
+                    main.innerHTML = renderInventarisPage();
+                    break;
+                case 'peminjaman':
+                    main.innerHTML = renderPeminjamanPage();
+                    break;
+                case 'pengembalian':
+                    main.innerHTML = renderPengembalianPage();
+                    break;
+                case 'riwayat':
+                    main.innerHTML = renderRiwayatPage();
+                    break;
+                case 'laporan':
+                    main.innerHTML = renderLaporanPage();
+                    break;
+            }
+        }
+
+        // A. DASHBOARD PAGE
+        function renderDashboardPage() {
+            const totals = getTotals();
+            const activeLoans = appState.loans.filter(l => l.status === 'DIPINJAM');
+            const alertLoans = activeLoans.filter(l => getDaysRemaining(l.dueDate) <= 1)
+                .sort((a, b) => getDaysRemaining(a.dueDate) - getDaysRemaining(b.dueDate));
+
+            const availPct = totals.totalUnits ? Math.round((totals.availableUnits / totals.totalUnits) * 100) : 0;
+            const borrowPct = totals.totalUnits ? Math.round((totals.borrowedUnits / totals.totalUnits) * 100) : 0;
+            const dmgPct = totals.totalUnits ? Math.round((totals.damagedUnits / totals.totalUnits) * 100) : 0;
+
+            return `
+                <!-- Role Welcome Banner -->
+                <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-sky-900 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-sky-300 text-xs font-semibold mb-2">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>Sistem Terintegrasi LABTRACK</span>
+                        </div>
+                        <h3 class="text-xl sm:text-2xl font-bold">
+                            Selamat Datang, ${appState.currentRole === 'PLP' ? 'Pranata Laboratorium (PLP)' : appState.currentRole === 'SISWA_GURU' ? 'Siswa / Guru Praktikum' : 'Kepala Bengkel'}
+                        </h3>
+                        <p class="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl">
+                            ${appState.currentRole === 'PLP'
+                                ? `Terdapat <strong class="text-amber-300">${totals.pendingRequests} pengajuan peminjaman</strong> menunggu persetujuan dan <strong class="text-rose-300">${totals.alertsCount} peminjaman</strong> perlu perhatian pengembalian.`
+                                : appState.currentRole === 'SISWA_GURU'
+                                ? `Saat ini tersedia <strong class="text-emerald-300">${totals.availableUnits} unit alat</strong> siap digunakan untuk kegiatan praktikum. Ajukan peminjaman secara online tanpa antre buku catatan.`
+                                : `Pantau distribusi kondisi inventaris (${availPct}% siap pakai) dan rekapitulasi peminjaman bengkel secara real-time tanpa memeriksa buku manual.`}
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 shrink-0">
+                        ${appState.currentRole === 'SISWA_GURU' ? `
+                            <button onclick="navigate('peminjaman')" class="px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-semibold text-xs sm:text-sm shadow-md transition-all cursor-pointer">
+                                <i class="fa-solid fa-plus mr-1.5"></i>Ajukan Peminjaman
+                            </button>
+                        ` : appState.currentRole === 'PLP' ? `
+                            <button onclick="navigate('peminjaman')" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer">
+                                <i class="fa-solid fa-clipboard-check mr-1.5"></i>Cek Pengajuan (${totals.pendingRequests})
+                            </button>
+                        ` : `
+                            <button onclick="navigate('laporan')" class="px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-semibold text-xs sm:text-sm shadow-md transition-all cursor-pointer">
+                                <i class="fa-solid fa-file-export mr-1.5"></i>Lihat Laporan Rekap
+                            </button>
+                        `}
+                    </div>
+                </div>
+
+                <!-- 4 KPI Stat Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Seluruh Alat</span>
+                            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                                <i class="fa-solid fa-boxes-stacked text-base"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-baseline gap-2">
+                            <span class="text-3xl font-extrabold text-slate-900">${totals.totalUnits}</span>
+                            <span class="text-xs text-slate-500 font-medium">unit (${appState.inventory.length} jenis)</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Alat Tersedia</span>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                <i class="fa-solid fa-circle-check text-base"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-baseline gap-2">
+                            <span class="text-3xl font-extrabold text-emerald-600">${totals.availableUnits}</span>
+                            <span class="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold">${availPct}% siap pakai</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-sky-700">Sedang Dipinjam</span>
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                                <i class="fa-solid fa-hand-holding-hand text-base"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-baseline gap-2">
+                            <span class="text-3xl font-extrabold text-sky-600">${totals.borrowedUnits}</span>
+                            <span class="text-xs text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full font-semibold">${totals.activeLoansCount} transaksi aktif</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-rose-700">Rusak / Perbaikan</span>
+                            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                                <i class="fa-solid fa-screwdriver-wrench text-base"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-baseline gap-2">
+                            <span class="text-3xl font-extrabold text-rose-600">${totals.damagedUnits}</span>
+                            <span class="text-xs text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full font-semibold">Perlu tindak lanjut</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Return Reminders + Condition Distribution -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Pengingat Pengembalian (2 cols) -->
+                    <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
+                        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
+                                    <i class="fa-solid fa-bell"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-900 text-sm sm:text-base">Pengingat Pengembalian & Tenggat</h4>
+                                    <p class="text-xs text-slate-500">Notifikasi otomatis untuk peminjaman terlambat atau jatuh tempo</p>
+                                </div>
+                            </div>
+                            <button onclick="navigate('pengembalian')" class="text-xs font-semibold text-sky-600 hover:text-sky-800 cursor-pointer">
+                                Semua Pinjaman <i class="fa-solid fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+
+                        <div class="p-6 flex-1 space-y-3">
+                            ${alertLoans.length === 0 ? `
+                                <div class="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                    <i class="fa-solid fa-circle-check text-3xl text-emerald-500 mb-2"></i>
+                                    <p class="text-sm font-semibold text-slate-700">Tidak ada peminjaman terlambat!</p>
+                                    <p class="text-xs text-slate-500 mt-1">Semua alat yang dipinjam masih dalam batas waktu pengembalian.</p>
+                                </div>
+                            ` : alertLoans.map(loan => {
+                                const item = appState.inventory.find(i => i.id === loan.itemId);
+                                const days = getDaysRemaining(loan.dueDate);
+                                const isOverdue = days < 0;
+                                return `
+                                    <div class="p-4 rounded-xl border-2 ${isOverdue ? 'bg-rose-50/70 border-rose-300 animate-alert-border' : 'bg-amber-50/70 border-amber-300'} flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div class="space-y-1">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isOverdue ? 'bg-rose-600 text-white' : 'bg-amber-500 text-slate-950'}">
+                                                    ${isOverdue ? `<i class="fa-solid fa-circle-exclamation mr-1"></i>TERLAMBAT ${Math.abs(days)} HARI` : days === 0 ? '<i class="fa-solid fa-clock mr-1"></i>JATUH TEMPO HARI INI' : '<i class="fa-solid fa-clock mr-1"></i>BESOK TENGGAT'}
+                                                </span>
+                                                <span class="text-xs font-mono text-slate-500">${loan.id}</span>
+                                            </div>
+                                            <p class="font-bold text-slate-900 text-sm">${item ? item.name : 'Alat'} (${loan.qty} unit)</p>
+                                            <p class="text-xs text-slate-600">
+                                                Peminjam: <strong>${loan.borrowerName}</strong> (${loan.department}) &bull; Tenggat: <strong>${formatIndoDate(loan.dueDate)}</strong>
+                                            </p>
+                                        </div>
+                                        ${appState.currentRole === 'PLP' ? `
+                                            <button onclick="openReturnModal('${loan.id}')" class="shrink-0 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors cursor-pointer">
+                                                Proses Kembali
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Distribusi Stok & Kondisi Inventaris (1 col) -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 flex flex-col justify-between">
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-base">Status Kondisi Inventaris</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">Proporsi ketersediaan seluruh unit alat bengkel</p>
+
+                            <!-- Visual Stacked Bar -->
+                            <div class="mt-5 h-4 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                                <div style="width: ${availPct}%" class="bg-emerald-500 transition-all duration-500" title="Tersedia: ${availPct}%"></div>
+                                <div style="width: ${borrowPct}%" class="bg-sky-500 transition-all duration-500" title="Dipinjam: ${borrowPct}%"></div>
+                                <div style="width: ${dmgPct}%" class="bg-rose-500 transition-all duration-500" title="Rusak: ${dmgPct}%"></div>
+                            </div>
+
+                            <div class="mt-6 space-y-3.5">
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="flex items-center gap-2 text-slate-700 font-medium">
+                                        <span class="w-3 h-3 rounded-full bg-emerald-500"></span>Tersedia di Rak
+                                    </span>
+                                    <span class="font-bold text-slate-900">${totals.availableUnits} unit (${availPct}%)</span>
+                                </div>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="flex items-center gap-2 text-slate-700 font-medium">
+                                        <span class="w-3 h-3 rounded-full bg-sky-500"></span>Sedang Dipinjam
+                                    </span>
+                                    <span class="font-bold text-slate-900">${totals.borrowedUnits} unit (${borrowPct}%)</span>
+                                </div>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="flex items-center gap-2 text-slate-700 font-medium">
+                                        <span class="w-3 h-3 rounded-full bg-rose-500"></span>Rusak / Perbaikan
+                                    </span>
+                                    <span class="font-bold text-slate-900">${totals.damagedUnits} unit (${dmgPct}%)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-100">
+                            <button onclick="navigate('inventaris')" class="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition-colors cursor-pointer">
+                                Cek Rincian Per Jenis Alat &rarr;
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aktivitas Terbaru -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <h4 class="font-bold text-slate-900 text-base">Aktivitas Peminjaman & Pengembalian Terbaru</h4>
+                        <button onclick="navigate('riwayat')" class="text-xs font-semibold text-sky-600 hover:text-sky-800 cursor-pointer">Lihat Semua Riwayat</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    <th class="py-3 px-5">ID Transaksi</th>
+                                    <th class="py-3 px-5">Peminjam</th>
+                                    <th class="py-3 px-5">Alat Laboratorium</th>
+                                    <th class="py-3 px-5">Tgl Kembali</th>
+                                    <th class="py-3 px-5">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                ${appState.loans.slice(0, 5).map(loan => {
+                                    const item = appState.inventory.find(i => i.id === loan.itemId);
+                                    return `
+                                        <tr class="hover:bg-slate-50/80 transition-colors">
+                                            <td class="py-3.5 px-5 font-mono text-xs font-semibold text-slate-600">${loan.id}</td>
+                                            <td class="py-3.5 px-5">
+                                                <div class="font-semibold text-slate-900">${loan.borrowerName}</div>
+                                                <div class="text-xs text-slate-500">${loan.borrowerRole} &bull; ${loan.department}</div>
+                                            </td>
+                                            <td class="py-3.5 px-5">
+                                                <div class="font-medium text-slate-800">${item ? item.name : '-'}</div>
+                                                <div class="text-xs text-slate-500">Jumlah: ${loan.qty} unit</div>
+                                            </td>
+                                            <td class="py-3.5 px-5 text-xs font-medium text-slate-600">${formatIndoDate(loan.dueDate)}</td>
+                                            <td class="py-3.5 px-5">${renderStatusBadge(loan)}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // B. DATA INVENTARIS PAGE
+        function renderInventarisPage() {
+            const isPLP = appState.currentRole === 'PLP';
+
+            const filteredItems = appState.inventory.filter(item => {
+                const avail = getAvailableQty(item);
+                const matchesSearch = item.name.toLowerCase().includes(invSearch.toLowerCase()) ||
+                                      item.code.toLowerCase().includes(invSearch.toLowerCase()) ||
+                                      item.location.toLowerCase().includes(invSearch.toLowerCase());
+                const matchesCat = invCategoryFilter === 'ALL' || item.category === invCategoryFilter;
+                let matchesStatus = true;
+                if (invStatusFilter === 'AVAILABLE') matchesStatus = avail > 0;
+                if (invStatusFilter === 'EMPTY') matchesStatus = avail === 0;
+                if (invStatusFilter === 'DAMAGED') matchesStatus = item.damaged > 0;
+                return matchesSearch && matchesCat && matchesStatus;
+            });
+
+            return `
+                <!-- Top Action & Filter Bar -->
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="relative flex-1">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="text" value="${invSearch}" oninput="invSearch = this.value; renderApp();" placeholder="Cari nama alat, kode barang (mis. LAB-ELK-001), atau lokasi rak..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select onchange="invCategoryFilter = this.value; renderApp();" class="rounded-xl border border-slate-300 px-3 py-2.5 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="ALL" ${invCategoryFilter === 'ALL' ? 'selected' : ''}>Semua Kategori</option>
+                                <option value="Alat Ukur" ${invCategoryFilter === 'Alat Ukur' ? 'selected' : ''}>Alat Ukur</option>
+                                <option value="Jaringan & Komputer" ${invCategoryFilter === 'Jaringan & Komputer' ? 'selected' : ''}>Jaringan & Komputer</option>
+                                <option value="Perkakas Teknik" ${invCategoryFilter === 'Perkakas Teknik' ? 'selected' : ''}>Perkakas Teknik</option>
+                                <option value="Catu Daya & Modul" ${invCategoryFilter === 'Catu Daya & Modul' ? 'selected' : ''}>Catu Daya & Modul</option>
+                            </select>
+
+                            <select onchange="invStatusFilter = this.value; renderApp();" class="rounded-xl border border-slate-300 px-3 py-2.5 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="ALL" ${invStatusFilter === 'ALL' ? 'selected' : ''}>Semua Status Stok</option>
+                                <option value="AVAILABLE" ${invStatusFilter === 'AVAILABLE' ? 'selected' : ''}>Tersedia Siap Pinjam</option>
+                                <option value="EMPTY" ${invStatusFilter === 'EMPTY' ? 'selected' : ''}>Stok Habis Dipinjam</option>
+                                <option value="DAMAGED" ${invStatusFilter === 'DAMAGED' ? 'selected' : ''}>Ada Unit Rusak</option>
+                            </select>
+
+                            ${isPLP ? `
+                                <button onclick="openAddItemModal()" class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-sm cursor-pointer">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>Tambah Alat</span>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    ${!isPLP ? `
+                        <div class="text-xs text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/70 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-info text-sky-600"></i>
+                            <span>Anda berada dalam mode <strong>${appState.currentRole === 'SISWA_GURU' ? 'Siswa / Guru' : 'Kepala Bengkel'}</strong>. Penambahan atau pengeditan master data inventaris hanya dapat dilakukan oleh <strong>PLP</strong>.</span>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- Inventory Table -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    <th class="py-3.5 px-5">Kode & Nama Alat</th>
+                                    <th class="py-3.5 px-4">Kategori & Lokasi</th>
+                                    <th class="py-3.5 px-3 text-center">Total</th>
+                                    <th class="py-3.5 px-3 text-center text-emerald-700">Tersedia</th>
+                                    <th class="py-3.5 px-3 text-center text-sky-700">Dipinjam</th>
+                                    <th class="py-3.5 px-3 text-center text-rose-700">Rusak</th>
+                                    <th class="py-3.5 px-5 text-right">Aksi & QR Code</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                ${filteredItems.length === 0 ? `
+                                    <tr>
+                                        <td colspan="7" class="py-10 text-center text-slate-500">
+                                            <i class="fa-solid fa-box-open text-3xl text-slate-300 mb-2"></i>
+                                            <p class="font-medium">Tidak ada alat yang sesuai dengan filter pencarian.</p>
+                                        </td>
+                                    </tr>
+                                ` : filteredItems.map(item => {
+                                    const avail = getAvailableQty(item);
+                                    return `
+                                        <tr class="hover:bg-slate-50/80 transition-colors">
+                                            <td class="py-4 px-5">
+                                                <span class="inline-block font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 mb-1">${item.code}</span>
+                                                <div class="font-bold text-slate-900">${item.name}</div>
+                                            </td>
+                                            <td class="py-4 px-4">
+                                                <div class="text-xs font-semibold text-slate-700">${item.category}</div>
+                                                <div class="text-xs text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-slate-400 mr-1"></i>${item.location}</div>
+                                            </td>
+                                            <td class="py-4 px-3 text-center font-bold text-slate-800">${item.total}</td>
+                                            <td class="py-4 px-3 text-center">
+                                                <span class="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-lg font-bold text-xs ${avail > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+                                                    ${avail}
+                                                </span>
+                                            </td>
+                                            <td class="py-4 px-3 text-center font-semibold text-sky-700">${item.borrowed}</td>
+                                            <td class="py-4 px-3 text-center">
+                                                ${item.damaged > 0
+                                                    ? `<span class="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-lg font-bold text-xs bg-rose-100 text-rose-800">${item.damaged}</span>`
+                                                    : `<span class="text-slate-400 text-xs">0</span>`}
+                                            </td>
+                                            <td class="py-4 px-5 text-right">
+                                                <div class="inline-flex items-center gap-1.5">
+                                                    <button onclick="openQRModal('${item.id}')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer" title="Lihat Label QR Code">
+                                                        <i class="fa-solid fa-qrcode text-sky-400"></i>
+                                                        <span>QR</span>
+                                                    </button>
+                                                    ${avail > 0 ? `
+                                                        <button onclick="quickBorrowFromInventory('${item.id}')" class="px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-semibold cursor-pointer" title="Pinjam Alat Ini">
+                                                            Pinjam
+                                                        </button>
+                                                    ` : ''}
+                                                    ${isPLP ? `
+                                                        <button onclick="openEditItemModal('${item.id}')" class="p-2 rounded-lg text-slate-500 hover:text-sky-700 hover:bg-sky-50 transition-colors cursor-pointer" title="Edit Data / Perbaikan">
+                                                            <i class="fa-solid fa-pen-to-square"></i>
+                                                        </button>
+                                                    ` : ''}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // C. PEMINJAMAN PAGE (FORM + APPROVAL QUEUE)
+        let preselectedBorrowItemId = '';
+
+        function renderPeminjamanPage() {
+            const isPLP = appState.currentRole === 'PLP';
+            const pendingLoans = appState.loans.filter(l => l.status === 'MENUNGGU');
+            const availableItems = appState.inventory.filter(i => getAvailableQty(i) > 0);
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Form Pengajuan Peminjaman Online (5 cols) -->
+                    <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden self-start">
+                        <div class="bg-slate-900 text-white px-6 py-4">
+                            <h3 class="font-bold text-base flex items-center gap-2">
+                                <i class="fa-solid fa-file-signature text-sky-400"></i>
+                                <span>Formulir Peminjaman Alat</span>
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Pengajuan digital menggantikan pencatatan buku manual</p>
+                        </div>
+
+                        <form onsubmit="handleCreateLoanRequest(event)" class="p-6 space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap Peminjam *</label>
+                                <input type="text" id="loan-borrower-name" required placeholder="Contoh: Andi Pratama / Bpk. Budi Santoso" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Status Peminjam *</label>
+                                    <select id="loan-borrower-role" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                        <option value="Siswa">Siswa</option>
+                                        <option value="Guru">Guru</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kelas / Jurusan / Mapel *</label>
+                                    <input type="text" id="loan-department" required placeholder="Misal: XI TKJ 1" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Alat Tersedia *</label>
+                                <select id="loan-item-id" onchange="updateMaxLoanQty()" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                    <option value="">-- Pilih Alat Laboratorium --</option>
+                                    ${availableItems.map(item => {
+                                        const avail = getAvailableQty(item);
+                                        return `<option value="${item.id}" ${preselectedBorrowItemId === item.id ? 'selected' : ''}>[${item.code}] ${item.name} (Tersedia: ${avail})</option>`;
+                                    }).join('')}
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah *</label>
+                                    <input type="number" id="loan-qty" min="1" max="20" value="1" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tgl Pinjam *</label>
+                                    <input type="date" id="loan-start-date" value="${getOffsetDateStr(0)}" required class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tgl Kembali *</label>
+                                    <input type="date" id="loan-due-date" value="${getOffsetDateStr(2)}" required class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Keperluan Praktikum / Penggunaan *</label>
+                                <textarea id="loan-purpose" rows="2" required placeholder="Tuliskan judul praktikum atau kegiatan..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                            </div>
+
+                            <button type="submit" class="w-full py-3 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md shadow-sky-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                <span>Kirim Pengajuan Peminjaman</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Daftar Antrean Persetujuan PLP (7 cols) -->
+                    <div class="lg:col-span-7 space-y-4">
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                            <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                                        <span>Antrean Persetujuan Peminjaman</span>
+                                        <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">${pendingLoans.length} Menunggu</span>
+                                    </h3>
+                                    <p class="text-xs text-slate-500 mt-0.5">PLP memeriksa ketersediaan stok sebelum menyerahkan alat kepada peminjam</p>
+                                </div>
+                            </div>
+
+                            <div class="p-6 space-y-4">
+                                ${pendingLoans.length === 0 ? `
+                                    <div class="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                        <i class="fa-solid fa-inbox text-3xl text-slate-300 mb-2"></i>
+                                        <p class="text-sm font-semibold text-slate-700">Belum ada pengajuan baru</p>
+                                        <p class="text-xs text-slate-500 mt-1">Semua permintaan peminjaman telah diproses oleh PLP.</p>
+                                    </div>
+                                ` : pendingLoans.map(loan => {
+                                    const item = appState.inventory.find(i => i.id === loan.itemId);
+                                    const avail = item ? getAvailableQty(item) : 0;
+                                    const stockEnough = avail >= loan.qty;
+
+                                    return `
+                                        <div class="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-white transition-all space-y-3">
+                                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                                <div>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="font-mono text-xs font-bold text-slate-500">${loan.id}</span>
+                                                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">Menunggu Persetujuan</span>
+                                                    </div>
+                                                    <h4 class="font-bold text-slate-900 text-base mt-1">${item ? item.name : 'Alat'} &times; ${loan.qty} unit</h4>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span class="text-xs font-semibold ${stockEnough ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-rose-700 bg-rose-50 border-rose-200'} px-2.5 py-1 rounded-lg border">
+                                                        Stok Tersedia: ${avail} unit
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-200/70">
+                                                <div><span class="text-slate-400">Peminjam:</span> <strong class="text-slate-800">${loan.borrowerName}</strong> (${loan.borrowerRole} - ${loan.department})</div>
+                                                <div><span class="text-slate-400">Jadwal:</span> <strong class="text-slate-800">${formatIndoDate(loan.borrowDate)} &rarr; ${formatIndoDate(loan.dueDate)}</strong></div>
+                                                <div class="sm:col-span-2"><span class="text-slate-400">Keperluan:</span> ${loan.purpose}</div>
+                                            </div>
+
+                                            ${isPLP ? `
+                                                <div class="flex items-center justify-end gap-2 pt-1">
+                                                    <button onclick="rejectLoanRequest('${loan.id}')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-semibold text-xs transition-colors cursor-pointer">
+                                                        <i class="fa-solid fa-xmark mr-1"></i>Tolak
+                                                    </button>
+                                                    <button onclick="approveLoanRequest('${loan.id}')" ${!stockEnough ? 'disabled' : ''} class="px-4 py-2 rounded-xl ${stockEnough ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'} font-semibold text-xs shadow-xs transition-colors">
+                                                        <i class="fa-solid fa-check mr-1"></i>Setujui & Serahkan Alat
+                                                    </button>
+                                                </div>
+                                            ` : `
+                                                <div class="text-[11px] text-slate-500 italic flex items-center gap-1.5">
+                                                    <i class="fa-solid fa-lock text-slate-400"></i>
+                                                    <span>Menunggu verifikasi & persetujuan oleh petugas PLP. (Ubah peran ke <strong>PLP</strong> di header untuk menyetujui)</span>
+                                                </div>
+                                            `}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // D. PENGEMBALIAN PAGE
+        function renderPengembalianPage() {
+            const isPLP = appState.currentRole === 'PLP';
+            const activeLoans = appState.loans.filter(l => l.status === 'DIPINJAM')
+                .sort((a, b) => getDaysRemaining(a.dueDate) - getDaysRemaining(b.dueDate));
+
+            return `
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-base">Daftar Alat Sedang Dipinjam (${activeLoans.length} Transaksi Aktif)</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Ketika alat dikembalikan, PLP memeriksa kondisi fisik barang sebelum memperbarui status stok</p>
+                        </div>
+                        ${!isPLP ? `
+                            <span class="inline-flex items-center gap-1.5 text-xs bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1.5 rounded-xl font-medium">
+                                <i class="fa-solid fa-user-shield"></i>
+                                <span>Inspeksi pengembalian dilakukan oleh PLP</span>
+                            </span>
+                        ` : ''}
+                    </div>
+
+                    ${activeLoans.length === 0 ? `
+                        <div class="p-12 text-center">
+                            <i class="fa-solid fa-check-double text-4xl text-emerald-500 mb-3"></i>
+                            <h4 class="font-bold text-slate-800">Semua Alat Telah Dikembalikan</h4>
+                            <p class="text-xs text-slate-500 mt-1">Tidak ada transaksi peminjaman yang sedang berlangsung saat ini.</p>
+                        </div>
+                    ` : `
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                        <th class="py-3.5 px-5">ID & Peminjam</th>
+                                        <th class="py-3.5 px-5">Alat Dipinjam</th>
+                                        <th class="py-3.5 px-4">Tgl Pinjam</th>
+                                        <th class="py-3.5 px-4">Tenggat Kembali</th>
+                                        <th class="py-3.5 px-4">Status Waktu</th>
+                                        <th class="py-3.5 px-5 text-right">Aksi Pengembalian</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 text-sm">
+                                    ${activeLoans.map(loan => {
+                                        const item = appState.inventory.find(i => i.id === loan.itemId);
+                                        const days = getDaysRemaining(loan.dueDate);
+                                        let timeBadge = '';
+                                        if (days < 0) {
+                                            timeBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800"><i class="fa-solid fa-circle-exclamation"></i>Terlambat ${Math.abs(days)} hari</span>`;
+                                        } else if (days <= 1) {
+                                            timeBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800"><i class="fa-solid fa-clock"></i>${days === 0 ? 'Jatuh Tempo Hari Ini' : 'Besok Kembali'}</span>`;
+                                        } else {
+                                            timeBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700"><i class="fa-solid fa-shield-check"></i>Aman (${days} hari lagi)</span>`;
+                                        }
+
+                                        return `
+                                            <tr class="hover:bg-slate-50/80 transition-colors">
+                                                <td class="py-4 px-5">
+                                                    <span class="font-mono text-xs text-slate-500">${loan.id}</span>
+                                                    <div class="font-bold text-slate-900">${loan.borrowerName}</div>
+                                                    <div class="text-xs text-slate-500">${loan.borrowerRole} &bull; ${loan.department}</div>
+                                                </td>
+                                                <td class="py-4 px-5">
+                                                    <div class="font-semibold text-slate-800">${item ? item.name : '-'}</div>
+                                                    <div class="text-xs text-slate-500">Jumlah: <strong>${loan.qty} unit</strong> (${item ? item.code : ''})</div>
+                                                </td>
+                                                <td class="py-4 px-4 text-xs text-slate-600">${formatIndoDate(loan.borrowDate)}</td>
+                                                <td class="py-4 px-4 text-xs font-bold text-slate-800">${formatIndoDate(loan.dueDate)}</td>
+                                                <td class="py-4 px-4">${timeBadge}</td>
+                                                <td class="py-4 px-5 text-right">
+                                                    ${isPLP ? `
+                                                        <button onclick="openReturnModal('${loan.id}')" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs inline-flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer">
+                                                            <i class="fa-solid fa-clipboard-check"></i>
+                                                            <span>Proses Pengembalian</span>
+                                                        </button>
+                                                    ` : `
+                                                        <span class="text-xs text-slate-400 font-medium">Khusus PLP</span>
+                                                    `}
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        // E. RIWAYAT PEMINJAMAN PAGE
+        function renderRiwayatPage() {
+            const filteredLoans = appState.loans.filter(loan => {
+                const item = appState.inventory.find(i => i.id === loan.itemId);
+                const itemName = item ? item.name.toLowerCase() : '';
+                const matchesSearch = loan.borrowerName.toLowerCase().includes(historySearch.toLowerCase()) ||
+                                      loan.id.toLowerCase().includes(historySearch.toLowerCase()) ||
+                                      loan.department.toLowerCase().includes(historySearch.toLowerCase()) ||
+                                      itemName.includes(historySearch.toLowerCase());
+                const matchesStatus = historyStatusFilter === 'ALL' || loan.status === historyStatusFilter;
+                return matchesSearch && matchesStatus;
+            });
+
+            return `
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-3 justify-between">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input type="text" value="${historySearch}" oninput="historySearch = this.value; renderApp();" placeholder="Cari ID transaksi, nama peminjam, kelas, atau nama alat..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <select onchange="historyStatusFilter = this.value; renderApp();" class="rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="ALL" ${historyStatusFilter === 'ALL' ? 'selected' : ''}>Semua Status Transaksi</option>
+                        <option value="MENUNGGU" ${historyStatusFilter === 'MENUNGGU' ? 'selected' : ''}>Menunggu Persetujuan</option>
+                        <option value="DIPINJAM" ${historyStatusFilter === 'DIPINJAM' ? 'selected' : ''}>Sedang Dipinjam</option>
+                        <option value="DIKEMBALIKAN_BAIK" ${historyStatusFilter === 'DIKEMBALIKAN_BAIK' ? 'selected' : ''}>Dikembalikan (Kondisi Baik)</option>
+                        <option value="DIKEMBALIKAN_RUSAK" ${historyStatusFilter === 'DIKEMBALIKAN_RUSAK' ? 'selected' : ''}>Dikembalikan (Rusak)</option>
+                        <option value="DITOLAK" ${historyStatusFilter === 'DITOLAK' ? 'selected' : ''}>Ditolak</option>
+                    </select>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    <th class="py-3.5 px-5">ID & Tanggal</th>
+                                    <th class="py-3.5 px-5">Peminjam</th>
+                                    <th class="py-3.5 px-5">Alat & Jumlah</th>
+                                    <th class="py-3.5 px-5">Status Transaksi</th>
+                                    <th class="py-3.5 px-5">Catatan Pemeriksaan PLP</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                ${filteredLoans.length === 0 ? `
+                                    <tr>
+                                        <td colspan="5" class="py-10 text-center text-slate-500">Tidak ada riwayat transaksi yang cocok.</td>
+                                    </tr>
+                                ` : filteredLoans.map(loan => {
+                                    const item = appState.inventory.find(i => i.id === loan.itemId);
+                                    return `
+                                        <tr class="hover:bg-slate-50/80 transition-colors">
+                                            <td class="py-4 px-5">
+                                                <div class="font-mono text-xs font-bold text-slate-700">${loan.id}</div>
+                                                <div class="text-xs text-slate-500 mt-0.5">Pinjam: ${formatIndoDate(loan.borrowDate)}</div>
+                                                ${loan.returnDate ? `<div class="text-xs text-emerald-700 font-medium">Kembali: ${formatIndoDate(loan.returnDate)}</div>` : ''}
+                                            </td>
+                                            <td class="py-4 px-5">
+                                                <div class="font-bold text-slate-900">${loan.borrowerName}</div>
+                                                <div class="text-xs text-slate-500">${loan.borrowerRole} &bull; ${loan.department}</div>
+                                            </td>
+                                            <td class="py-4 px-5">
+                                                <div class="font-semibold text-slate-800">${item ? item.name : '-'}</div>
+                                                <div class="text-xs text-slate-500">${loan.qty} unit &bull; ${loan.purpose}</div>
+                                            </td>
+                                            <td class="py-4 px-5">${renderStatusBadge(loan)}</td>
+                                            <td class="py-4 px-5 text-xs text-slate-600 max-w-xs">
+                                                ${loan.notes ? loan.notes : '<span class="text-slate-400 italic">-</span>'}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // F. LAPORAN OTOMATIS PAGE
+        function renderLaporanPage() {
+            const totals = getTotals();
+            const maxLoanCount = Math.max(...appState.inventory.map(i => i.totalLoansCount), 1);
+
+            return `
+                <!-- Action Bar (No Print) -->
+                <div class="no-print bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base">Rekapitulasi Otomatis Inventaris & Peminjaman</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Laporan tersusun otomatis untuk kebutuhan evaluasi PLP dan Kepala Bengkel</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="exportReportCSV()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm inline-flex items-center gap-2 shadow-xs cursor-pointer">
+                            <i class="fa-solid fa-file-csv"></i>
+                            <span>Ekspor CSV (Excel)</span>
+                        </button>
+                        <button onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm inline-flex items-center gap-2 shadow-xs cursor-pointer">
+                            <i class="fa-solid fa-print"></i>
+                            <span>Cetak Laporan</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Printable Report Document -->
+                <div class="print-full bg-white rounded-2xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-8">
+                    <!-- Report Header -->
+                    <div class="border-b-2 border-slate-800 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-widest text-sky-700">LABTRACK — LABORATORY EQUIPMENT TRACKING SYSTEM</div>
+                            <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">LAPORAN REKAPITULASI INVENTARIS & PENGGUNAAN ALAT</h2>
+                            <p class="text-xs text-slate-500 mt-1">Dicetak pada: ${formatIndoDate(getOffsetDateStr(0))} &bull; Status Data: Real-Time Sistem</p>
+                        </div>
+                        <div class="bg-slate-100 px-4 py-3 rounded-xl text-xs space-y-1">
+                            <div>Total Jenis Alat: <strong>${appState.inventory.length} Jenis</strong></div>
+                            <div>Total Transaksi Tercatat: <strong>${appState.loans.length} Transaksi</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Summary Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                            <div class="text-xs text-slate-500 font-semibold">Total Aset Unit</div>
+                            <div class="text-2xl font-extrabold text-slate-900 mt-1">${totals.totalUnits} Unit</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                            <div class="text-xs text-emerald-700 font-semibold">Kondisi Baik & Tersedia</div>
+                            <div class="text-2xl font-extrabold text-emerald-700 mt-1">${totals.availableUnits} Unit</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-sky-50/70 border border-sky-200">
+                            <div class="text-xs text-sky-700 font-semibold">Sedang Digunakan</div>
+                            <div class="text-2xl font-extrabold text-sky-700 mt-1">${totals.borrowedUnits} Unit</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-rose-50/70 border border-rose-200">
+                            <div class="text-xs text-rose-700 font-semibold">Perlu Perbaikan (Rusak)</div>
+                            <div class="text-2xl font-extrabold text-rose-700 mt-1">${totals.damagedUnits} Unit</div>
+                        </div>
+                    </div>
+
+                    <!-- Tingkat Penggunaan Per Alat (Visual Bar Chart) -->
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-3">Frekuensi Penggunaan Alat Tertinggi</h4>
+                        <div class="space-y-3 bg-slate-50 p-5 rounded-xl border border-slate-200">
+                            ${[...appState.inventory].sort((a, b) => b.totalLoansCount - a.totalLoansCount).map(item => {
+                                const widthPct = Math.round((item.totalLoansCount / maxLoanCount) * 100);
+                                return `
+                                    <div>
+                                        <div class="flex justify-between text-xs font-semibold mb-1">
+                                            <span class="text-slate-800">${item.name} <span class="text-slate-400 font-mono">(${item.code})</span></span>
+                                            <span class="text-sky-700">${item.totalLoansCount}x dipinjam</span>
+                                        </div>
+                                        <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                            <div style="width: ${widthPct}%" class="h-full bg-sky-600 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Detailed Inventory Audit Table -->
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-3">Tabel Rekap Kondisi Inventaris Laboratorium</h4>
+                        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                                <thead>
+                                    <tr class="bg-slate-100 border-b border-slate-200 font-bold text-slate-700">
+                                        <th class="py-3 px-4">Kode</th>
+                                        <th class="py-3 px-4">Nama Alat</th>
+                                        <th class="py-3 px-4 text-center">Total</th>
+                                        <th class="py-3 px-4 text-center">Tersedia</th>
+                                        <th class="py-3 px-4 text-center">Dipinjam</th>
+                                        <th class="py-3 px-4 text-center">Rusak</th>
+                                        <th class="py-3 px-4 text-center">Total Peminjaman</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    ${appState.inventory.map(item => `
+                                        <tr>
+                                            <td class="py-3 px-4 font-mono text-xs">${item.code}</td>
+                                            <td class="py-3 px-4 font-semibold text-slate-900">${item.name}</td>
+                                            <td class="py-3 px-4 text-center font-bold">${item.total}</td>
+                                            <td class="py-3 px-4 text-center text-emerald-700 font-semibold">${getAvailableQty(item)}</td>
+                                            <td class="py-3 px-4 text-center text-sky-700 font-semibold">${item.borrowed}</td>
+                                            <td class="py-3 px-4 text-center text-rose-700 font-semibold">${item.damaged}</td>
+                                            <td class="py-3 px-4 text-center font-bold text-slate-700">${item.totalLoansCount}x</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Status Badge Renderer
+        function renderStatusBadge(loan) {
+            switch (loan.status) {
+                case 'MENUNGGU':
+                    return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800"><i class="fa-solid fa-hourglass-half"></i>Menunggu</span>';
+                case 'DIPINJAM':
+                    return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800"><i class="fa-solid fa-hand-holding-hand"></i>Sedang Dipinjam</span>';
+                case 'DIKEMBALIKAN_BAIK':
+                    return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-circle-check"></i>Kembali (Baik)</span>';
+                case 'DIKEMBALIKAN_RUSAK':
+                    return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800"><i class="fa-solid fa-triangle-exclamation"></i>Kembali (Rusak)</span>';
+                case 'DITOLAK':
+                    return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700"><i class="fa-solid fa-ban"></i>Ditolak</span>';
+                default:
+                    return loan.status;
+            }
+        }
+
+        // ==================== INTERACTIVE WORKFLOW ACTIONS ====================
+
+        // 1. Ajukan Peminjaman Baru
+        function updateMaxLoanQty() {
+            const itemId = document.getElementById('loan-item-id').value;
+            const qtyInput = document.getElementById('loan-qty');
+            const item = appState.inventory.find(i => i.id === itemId);
+            if (item) {
+                const avail = getAvailableQty(item);
+                qtyInput.max = avail;
+                if (parseInt(qtyInput.value, 10) > avail) {
+                    qtyInput.value = avail;
+                }
+            }
+        }
+
+        function handleCreateLoanRequest(e) {
+            e.preventDefault();
+            const borrowerName = document.getElementById('loan-borrower-name').value.trim();
+            const borrowerRole = document.getElementById('loan-borrower-role').value;
+            const department = document.getElementById('loan-department').value.trim();
+            const itemId = document.getElementById('loan-item-id').value;
+            const qty = parseInt(document.getElementById('loan-qty').value, 10);
+            const borrowDate = document.getElementById('loan-start-date').value;
+            const dueDate = document.getElementById('loan-due-date').value;
+            const purpose = document.getElementById('loan-purpose').value.trim();
+
+            const item = appState.inventory.find(i => i.id === itemId);
+            if (!item) {
+                showToast('Silakan pilih alat laboratorium terlebih dahulu.', 'warning');
+                return;
+            }
+            const avail = getAvailableQty(item);
+            if (qty > avail || qty <= 0) {
+                showToast(`Jumlah melebihi stok tersedia (${avail} unit).`, 'danger');
+                return;
+            }
+
+            const newId = `TRX-2026-0${87 + appState.loans.length}`;
+            const newLoan = {
+                id: newId,
+                borrowerName,
+                borrowerRole,
+                department,
+                itemId,
+                qty,
+                borrowDate,
+                dueDate,
+                returnDate: null,
+                purpose,
+                status: 'MENUNGGU',
+                conditionAfter: null,
+                notes: ''
+            };
+
+            appState.loans.unshift(newLoan);
+            preselectedBorrowItemId = '';
+            renderApp();
+            showToast(`Pengajuan peminjaman ${newId} berhasil dikirim! Menunggu persetujuan PLP.`, 'success');
+        }
+
+        // 2. PLP Menyetujui Peminjaman
+        function approveLoanRequest(loanId) {
+            const loan = appState.loans.find(l => l.id === loanId);
+            if (!loan) return;
+            const item = appState.inventory.find(i => i.id === loan.itemId);
+            if (!item) return;
+
+            const avail = getAvailableQty(item);
+            if (avail < loan.qty) {
+                showToast('Gagal menyetujui: Stok tersedia tidak mencukupi.', 'danger');
+                return;
+            }
+
+            item.borrowed += loan.qty;
+            item.totalLoansCount += 1;
+            loan.status = 'DIPINJAM';
+
+            renderApp();
+            showToast(`Peminjaman ${loan.id} disetujui. Stok tersedia ${item.name} otomatis diperbarui.`, 'success');
+        }
+
+        // 3. PLP Menolak Peminjaman
+        function rejectLoanRequest(loanId) {
+            const loan = appState.loans.find(l => l.id === loanId);
+            if (!loan) return;
+            loan.status = 'DITOLAK';
+            loan.notes = 'Pengajuan ditolak oleh PLP (jadwal bentrok / stok diprioritaskan).';
+            renderApp();
+            showToast(`Pengajuan ${loan.id} telah ditolak.`, 'warning');
+        }
+
+        // 4. Buka Modal Inspeksi Pengembalian
+        function openReturnModal(loanId) {
+            const loan = appState.loans.find(l => l.id === loanId);
+            if (!loan) return;
+            const item = appState.inventory.find(i => i.id === loan.itemId);
+
+            document.getElementById('return-loan-id').value = loan.id;
+            document.getElementById('return-notes').value = '';
+            document.querySelector('input[name="returnCondition"][value="BAIK"]').checked = true;
+
+            document.getElementById('return-summary-box').innerHTML = `
+                <div class="flex justify-between">
+                    <span class="text-slate-500">ID Transaksi:</span>
+                    <span class="font-mono font-bold text-slate-900">${loan.id}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Peminjam:</span>
+                    <span class="font-bold text-slate-900">${loan.borrowerName} (${loan.department})</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Alat & Jumlah:</span>
+                    <span class="font-bold text-sky-700">${item ? item.name : '-'} (${loan.qty} unit)</span>
+                </div>
+            `;
+
+            openModal('modal-return');
+        }
+
+        // 5. Proses Pengembalian & Update Kondisi Stok
+        function handleProcessReturn(e) {
+            e.preventDefault();
+            const loanId = document.getElementById('return-loan-id').value;
+            const condition = document.querySelector('input[name="returnCondition"]:checked').value;
+            const notes = document.getElementById('return-notes').value.trim();
+
+            const loan = appState.loans.find(l => l.id === loanId);
+            if (!loan) return;
+            const item = appState.inventory.find(i => i.id === loan.itemId);
+
+            if (item) {
+                item.borrowed = Math.max(0, item.borrowed - loan.qty);
+                if (condition === 'RUSAK') {
+                    item.damaged += loan.qty;
+                }
+            }
+
+            loan.returnDate = getOffsetDateStr(0);
+            loan.conditionAfter = condition;
+            loan.status = condition === 'BAIK' ? 'DIKEMBALIKAN_BAIK' : 'DIKEMBALIKAN_RUSAK';
+            loan.notes = notes || (condition === 'BAIK'
+                ? 'Alat diperiksa PLP dalam kondisi baik dan kembali tersedia di rak.'
+                : 'Alat mengalami kerusakan saat dikembalikan, dicatat perlu perbaikan.');
+
+            closeModal('modal-return');
+            renderApp();
+
+            if (condition === 'BAIK') {
+                showToast(`Pengembalian ${loan.id} selesai. ${loan.qty} unit kembali berstatus TERSEDIA.`, 'success');
+            } else {
+                showToast(`Pengembalian ${loan.id} dicatat RUSAK / PERLU PERBAIKAN.`, 'warning');
+            }
+        }
+
+        // 6. Tambah / Edit Inventaris (PLP)
+        function openAddItemModal() {
+            document.getElementById('modal-item-title').textContent = 'Tambah Data Alat Inventaris';
+            document.getElementById('inv-edit-id').value = '';
+            document.getElementById('inv-code').value = `LAB-ALT-00${appState.inventory.length + 1}`;
+            document.getElementById('inv-name').value = '';
+            document.getElementById('inv-category').value = 'Alat Ukur';
+            document.getElementById('inv-total').value = 5;
+            document.getElementById('inv-location').value = 'Lemari Utama Lab';
+            document.getElementById('inv-damaged-wrapper').classList.add('hidden');
+            openModal('modal-add-item');
+        }
+
+        function openEditItemModal(itemId) {
+            const item = appState.inventory.find(i => i.id === itemId);
+            if (!item) return;
+
+            document.getElementById('modal-item-title').textContent = 'Edit Data & Status Perbaikan Alat';
+            document.getElementById('inv-edit-id').value = item.id;
+            document.getElementById('inv-code').value = item.code;
+            document.getElementById('inv-name').value = item.name;
+            document.getElementById('inv-category').value = item.category;
+            document.getElementById('inv-total').value = item.total;
+            document.getElementById('inv-location').value = item.location;
+
+            const dmgWrapper = document.getElementById('inv-damaged-wrapper');
+            const dmgInput = document.getElementById('inv-damaged');
+            dmgWrapper.classList.remove('hidden');
+            dmgInput.value = item.damaged;
+            dmgInput.max = item.total - item.borrowed;
+
+            openModal('modal-add-item');
+        }
+
+        function handleSaveInventoryItem(e) {
+            e.preventDefault();
+            const editId = document.getElementById('inv-edit-id').value;
+            const code = document.getElementById('inv-code').value.trim().toUpperCase();
+            const name = document.getElementById('inv-name').value.trim();
+            const category = document.getElementById('inv-category').value;
+            const total = parseInt(document.getElementById('inv-total').value, 10);
+            const location = document.getElementById('inv-location').value.trim() || 'Rak Lab';
+
+            if (editId) {
+                const item = appState.inventory.find(i => i.id === editId);
+                if (item) {
+                    const damaged = parseInt(document.getElementById('inv-damaged').value, 10) || 0;
+                    if (total < item.borrowed + damaged) {
+                        showToast('Total stok tidak boleh lebih kecil dari jumlah unit yang dipinjam + rusak.', 'danger');
+                        return;
+                    }
+                    item.code = code;
+                    item.name = name;
+                    item.category = category;
+                    item.total = total;
+                    item.location = location;
+                    item.damaged = damaged;
+                    showToast(`Data inventaris "${name}" berhasil diperbarui.`, 'success');
+                }
+            } else {
+                const newItem = {
+                    id: `INV-0${appState.inventory.length + 1}`,
+                    code,
+                    name,
+                    category,
+                    total,
+                    borrowed: 0,
+                    damaged: 0,
+                    location,
+                    totalLoansCount: 0
+                };
+                appState.inventory.push(newItem);
+                showToast(`Alat baru "${name}" berhasil ditambahkan ke inventaris.`, 'success');
+            }
+
+            closeModal('modal-add-item');
+            renderApp();
+        }
+
+        // 7. QR Code Modal & Scan Simulator
+        function openQRModal(itemId) {
+            const item = appState.inventory.find(i => i.id === itemId);
+            if (!item) return;
+
+            const avail = getAvailableQty(item);
+            document.getElementById('qr-item-code').textContent = item.code;
+            document.getElementById('qr-item-name').textContent = item.name;
+            document.getElementById('qr-item-category').textContent = `${item.category} • ${item.location}`;
+
+            document.getElementById('qr-item-stock-summary').innerHTML = `
+                <div>
+                    <div class="text-slate-400">Total</div>
+                    <div class="font-bold text-slate-900 text-sm">${item.total}</div>
+                </div>
+                <div>
+                    <div class="text-emerald-600">Tersedia</div>
+                    <div class="font-bold text-emerald-700 text-sm">${avail}</div>
+                </div>
+                <div>
+                    <div class="text-sky-600">Dipinjam</div>
+                    <div class="font-bold text-sky-700 text-sm">${item.borrowed}</div>
+                </div>
+            `;
+
+            const container = document.getElementById('qr-canvas-container');
+            container.innerHTML = '';
+            new QRCode(container, {
+                text: `LABTRACK|${item.code}|${item.name}`,
+                width: 150,
+                height: 150,
+                colorDark: '#0f172a',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            const borrowBtn = document.getElementById('qr-quick-borrow-btn');
+            if (avail > 0) {
+                borrowBtn.classList.remove('hidden');
+                borrowBtn.onclick = () => {
+                    closeModal('modal-qr');
+                    quickBorrowFromInventory(item.id);
+                };
+            } else {
+                borrowBtn.classList.add('hidden');
+            }
+
+            openModal('modal-qr');
+        }
+
+        function quickBorrowFromInventory(itemId) {
+            preselectedBorrowItemId = itemId;
+            navigate('peminjaman');
+            showToast('Alat dipilih otomatis pada formulir peminjaman.', 'info');
+        }
+
+        function openScanSimulatorModal() {
+            const select = document.getElementById('scan-select-item');
+            select.innerHTML = appState.inventory.map(item =>
+                `<option value="${item.id}">[${item.code}] ${item.name} (Tersedia: ${getAvailableQty(item)})</option>`
+            ).join('');
+            openModal('modal-scan');
+        }
+
+        function executeSimulatedScan() {
+            const itemId = document.getElementById('scan-select-item').value;
+            closeModal('modal-scan');
+            openQRModal(itemId);
+            showToast('QR Code alat berhasil dipindai!', 'success');
+        }
+
+        // 8. Export CSV Laporan
+        function exportReportCSV() {
+            const headers = ['Kode Barang', 'Nama Alat', 'Kategori', 'Lokasi', 'Total Stok', 'Tersedia', 'Sedang Dipinjam', 'Rusak', 'Total Peminjaman'];
+            const rows = appState.inventory.map(item => [
+                item.code,
+                `"${item.name}"`,
+                `"${item.category}"`,
+                `"${item.location}"`,
+                item.total,
+                getAvailableQty(item),
+                item.borrowed,
+                item.damaged,
+                item.totalLoansCount
+            ]);
+
+            const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `Laporan_LABTRACK_${getOffsetDateStr(0)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('Laporan inventaris berhasil diekspor ke file CSV!', 'success');
+        }
+
+        // Modal Utilities
+        function openModal(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+        }
+
+        // Initial Boot
+        window.addEventListener('DOMContentLoaded', () => {
+            renderApp();
+        });
+    </script>
+</body>
+</html>
